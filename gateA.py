@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from operator import pos
 import os
-import sys
+#import sys
 from FreeCAD import Base
 import string
-import subprocess
-import numpy as np
-import Draft
+#import subprocess
+#import numpy as np
+#import Draft
 import FreeCAD as App
 import FreeCADGui as Gui
 #from ScrLib import ScrData
@@ -133,7 +133,10 @@ class Ui_Dialog(object):
         QtCore.QObject.connect(self.pushButton4, QtCore.SIGNAL("pressed()"), self.upDate)
         QtCore.QObject.connect(self.pushButton2, QtCore.SIGNAL("pressed()"), self.create)
         QtCore.QObject.connect(self.pushButton3, QtCore.SIGNAL("pressed()"), self.reSet)
-
+        self.retranslateUi(Dialog)
+    def retranslateUi(self, Dialog):
+        Dialog.setWindowTitle(QtGui.QApplication.translate("Dialog", 'Gate', None))
+        pass
     def onDev(self):
         key=self.comboBox_dev.currentText()
         self.comboBox_gateType.clear()
@@ -202,51 +205,103 @@ class Ui_Dialog(object):
                 return
             App.ActiveDocument.recompute() 
     def create(self):
-        mypath=self.comboBox_gateType.currentText()
-        if mypath=='CircleShapeGate':
-            size=self.comboBox_gateSize.currentText()
-            if int(size)<=500:
-                fname='circleGate200_500.FCStd'
-            elif int(size)<=1000:
-                fname='circleGate600_1000.FCStd'    
-            elif int(size)<=1500:
-                fname='circleGate1100_1500.FCStd'
-            elif int(size)<=2000:
-                fname='circleGate1650_2000.FCStd'  
-        elif mypath=='SqureShapeGate':
-            sizeIndex=self.comboBox_gateSize.currentIndex()
-            if sizeIndex<=6:
-                fname='squreGate200_500.FCStd'  
-            elif sizeIndex<=11:
-                fname='squreGate600_1000.FCStd' 
-            elif sizeIndex<=17:
-                fname='squreGate1100_1500.FCStd'
-            elif sizeIndex<=23:
-                fname='squreGate1600_2000.FCStd'    
-        elif mypath=='MovableWeir':
-            sizeIndex=self.comboBox_gateSize.currentIndex()  
-            fname='MovableWeir300_1000.FCStd' 
-        elif mypath=='ManualSideHandle':
-            sizeIndex=self.comboBox_gateSize.currentIndex()  
-            size=self.comboBox_gateSize.currentText()
-            fname=size+'.FCStd' 
-        elif mypath=='ManualTopHandle':
-            sizeIndex=self.comboBox_gateSize.currentIndex() 
-            size=self.comboBox_gateSize.currentText() 
-            fname=size+'.FCStd' 
-        elif mypath=='ElectricSideHandle':
-            sizeIndex=self.comboBox_gateSize.currentIndex() 
-            size=self.comboBox_gateSize.currentText() 
-            fname=size+'.FCStd' 
-        elif mypath=='ElectricTopHandle':
-            sizeIndex=self.comboBox_gateSize.currentIndex()  
-            size=self.comboBox_gateSize.currentText()
-            fname=size+'.FCStd'     
-
-        base=os.path.dirname(os.path.abspath(__file__))
-        joined_path = os.path.join(base, 'Sewage_eqp_data',mypath,fname) 
-        Gui.ActiveDocument.mergeProject(joined_path) 
-        Gui.SendMsgToActiveView("ViewFit")
+         doc=App.activeDocument()
+         mypath=self.comboBox_gateType.currentText()
+         if mypath=='CircleShapeGate':
+             size=self.comboBox_gateSize.currentText()
+             if int(size)<=500:
+                 fname='circleGate200_500.FCStd'
+             elif int(size)<=1000:
+                 fname='circleGate600_1000.FCStd'    
+             elif int(size)<=1500:
+                 fname='circleGate1100_1500.FCStd'
+             elif int(size)<=2000:
+                 fname='circleGate1650_2000.FCStd'  
+         elif mypath=='SqureShapeGate':
+             sizeIndex=self.comboBox_gateSize.currentIndex()
+             if sizeIndex<=6:
+                 fname='squreGate200_500.FCStd'  
+             elif sizeIndex<=11:
+                 fname='squreGate600_1000.FCStd' 
+             elif sizeIndex<=17:
+                 fname='squreGate1100_1500.FCStd'
+             elif sizeIndex<=23:
+                 fname='squreGate1600_2000.FCStd'    
+         elif mypath=='MovableWeir':
+             sizeIndex=self.comboBox_gateSize.currentIndex()  
+             fname='MovableWeir300_1000.FCStd' 
+         elif mypath=='ManualSideHandle':
+             sizeIndex=self.comboBox_gateSize.currentIndex()  
+             size=self.comboBox_gateSize.currentText()
+             fname=size+'.FCStd' 
+         elif mypath=='ManualTopHandle':
+             sizeIndex=self.comboBox_gateSize.currentIndex() 
+             size=self.comboBox_gateSize.currentText() 
+             fname=size+'.FCStd' 
+         elif mypath=='ElectricSideHandle':
+             sizeIndex=self.comboBox_gateSize.currentIndex() 
+             size=self.comboBox_gateSize.currentText() 
+             fname=size+'.FCStd' 
+         elif mypath=='ElectricTopHandle':
+             sizeIndex=self.comboBox_gateSize.currentIndex()  
+             size=self.comboBox_gateSize.currentText()
+             fname=size+'.FCStd'     
+         
+         base=os.path.dirname(os.path.abspath(__file__))
+         joined_path = os.path.join(base, 'Sewage_eqp_data',mypath,fname) 
+ 
+          # --- インポート前のオブジェクトリストを取得 ---
+         old_obj_names = [o.Name for o in doc.Objects]
+         
+         # マージ実行
+         Gui.ActiveDocument.mergeProject(joined_path)
+         doc.recompute() # 一旦再計算して内部IDを確定させる
+         # --- インポート後に増えたオブジェクトを特定 ---
+         new_objs = [o for o in doc.Objects if o.Name not in old_obj_names]
+         
+         if not new_objs:
+             print("Error: オブジェクトが読み込まれませんでした。")
+             return
+         #latticeBeamというラベルを持つものを優先的に探す
+         move_target = None
+         for o in new_objs:
+             if "circleGate"  in o.Label[:10] or "circleGate"  in o.Name[:10]:
+                 move_target = o
+             elif "squreGate"  in o.Label[:9] or "squreGate"  in o.Name[:9]:
+                 move_target = o 
+             elif "MovableWeir"  in o.Label or "MovableWeir"  in o.Name:
+                 move_target = o 
+             elif "SGT"  in o.Label[:3] or "SGT"  in o.Name[:3]:
+                 move_target = o  
+             elif "2step"  in o.Label[:5] or "2step"  in o.Name[:5]:
+                 move_target = o 
+             elif "MFH"  in o.Label[:5] or "MFH"  in o.Name[:5]:
+                 move_target = o    
+             elif "LTKD"  in o.Label[:5] or "LTKD"  in o.Name[:5]:
+                 move_target = o
+         
+         # 見つからなければ、新しく入ってきた最初のオブジェクトをターゲットにする
+         if not move_target:
+             move_target = new_objs[0]
+         view = Gui.ActiveDocument.ActiveView
+         callbacks = {}
+         def move_cb(info):
+             pos = info["Position"]
+             # 重要：ビュー平面上の3D座標を取得
+             p = view.getPoint(pos)
+             if move_target:
+                 move_target.Placement.Base = p
+                 #view.softRedraw()
+         def click_cb(info):
+             if info["State"] == "DOWN" and info["Button"] == "BUTTON1":
+                 # コールバック解除
+                 view.removeEventCallback("SoLocation2Event", callbacks["move"])
+                 view.removeEventCallback("SoMouseButtonEvent", callbacks["click"])
+                 App.ActiveDocument.recompute()
+                 print("Placed: " + move_target.Label)
+         # イベント登録
+         callbacks["move"] = view.addEventCallback("SoLocation2Event", move_cb)
+         callbacks["click"] = view.addEventCallback("SoMouseButtonEvent", click_cb)  
 
     def setParts(self):
          global spGate
